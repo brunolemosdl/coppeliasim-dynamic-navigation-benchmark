@@ -12,8 +12,8 @@ def calc_heading_score(
     if goal is None:
         return 0.0
 
-    dx_goal = goal[0] - robot_pose.x
-    dy_goal = goal[1] - robot_pose.y
+    dx_goal = goal[0] - final_pose[0]
+    dy_goal = goal[1] - final_pose[1]
     dist_to_goal = math.sqrt(dx_goal**2 + dy_goal**2)
 
     if dist_to_goal < 0.1:
@@ -67,7 +67,10 @@ def calc_clearance_score(
         return 0.3 + 0.7 * min(1.0, (min_dist - safe_distance) / (max_clearance - safe_distance))
 
 def calc_velocity_score(v: float, w: float, max_speed: float, max_angular_speed: float) -> float:
-    if max_speed <= 0:
+    if max_speed <= 0 or max_angular_speed <= 0:
         return 0.0
 
-    return v / max_speed
+    translational = max(0.0, v / max_speed)
+    angular_penalty = min(1.0, abs(w) / max_angular_speed)
+
+    return translational * (1.0 - 0.4 * angular_penalty)

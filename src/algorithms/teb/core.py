@@ -51,6 +51,25 @@ class TEBPlanner(BasePlanner):
                 return linear_vel, angular_vel
             return 0.0, 0.0
 
+        waypoint_threshold = float(
+            os.getenv("TEB_WAYPOINT_THRESHOLD", os.getenv("WAYPOINT_THRESHOLD", "0.15"))
+        )
+        waypoint_threshold = max(waypoint_threshold, self.robot_radius * 0.8)
+
+        while len(self.current_path) > 1:
+            next_waypoint = self.current_path[0]
+            dx = next_waypoint[0] - robot_pose.x
+            dy = next_waypoint[1] - robot_pose.y
+            distance = math.sqrt(dx**2 + dy**2)
+
+            if distance >= waypoint_threshold:
+                break
+
+            self.current_path.pop(0)
+
+        if not self.current_path:
+            return 0.0, 0.0
+
         next_waypoint = self.current_path[0]
         dx = next_waypoint[0] - robot_pose.x
         dy = next_waypoint[1] - robot_pose.y
@@ -69,21 +88,10 @@ class TEBPlanner(BasePlanner):
         if min_obstacle_dist < critical_dist:
             speed_factor = max(teb_min_speed_factor, (min_obstacle_dist - self.robot_radius) / collision_threshold)
 
-        waypoint_threshold = float(os.getenv("TEB_WAYPOINT_THRESHOLD", os.getenv("WAYPOINT_THRESHOLD", "0.05")))
-        if distance < waypoint_threshold:
-            if len(self.current_path) > 1:
-                self.current_path.pop(0)
-            if len(self.current_path) < 2:
-                return 0.0, 0.0
-            next_waypoint = self.current_path[0]
-            dx = next_waypoint[0] - robot_pose.x
-            dy = next_waypoint[1] - robot_pose.y
-            distance = math.sqrt(dx**2 + dy**2)
-
         target_angle = math.atan2(dy, dx)
         heading_error = normalize_angle(target_angle - robot_pose.theta)
 
-        linear_vel = self.max_speed
+        linear_vel = min(self.max_speed, distance / self.dt)
 
         teb_heading_threshold_high = float(os.getenv("TEB_HEADING_THRESHOLD_HIGH", "0.8"))
         teb_heading_threshold_low = float(os.getenv("TEB_HEADING_THRESHOLD_LOW", "0.5"))
