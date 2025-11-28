@@ -19,6 +19,7 @@ class ORCAPlanner(BasePlanner):
         self.time_horizon_static = float(os.getenv("ORCA_TIME_HORIZON_STATIC", "2.5"))
         self.time_step = float(os.getenv("ORCA_TIME_STEP", os.getenv("TIME_STEP", "0.1")))
         self.neighbor_dist = float(os.getenv("ORCA_NEIGHBOR_DIST", "3.0"))
+        self.robot_safe_dist = float(os.getenv("ORCA_ROBOT_SAFE_DIST", "2.0"))
 
         velocity_history_size = int(os.getenv("ORCA_VELOCITY_HISTORY_SIZE", "5"))
         self.obstacle_history: Dict[Tuple[float, float], deque] = {}
@@ -55,7 +56,6 @@ class ORCAPlanner(BasePlanner):
         preferred_vel = self._calculate_preferred_velocity(robot_pose, target)
 
         obstacles = laser_to_obstacles(robot_pose, laser_scan)
-
         orca_vel = self._compute_orca_velocity(robot_pose, preferred_vel, obstacles, other_robots)
 
         linear_vel = min(self.max_speed, math.sqrt(orca_vel[0] ** 2 + orca_vel[1] ** 2))
@@ -64,6 +64,25 @@ class ORCAPlanner(BasePlanner):
         heading_error = normalize_angle(desired_heading - robot_pose.theta)
         orca_heading_gain = float(os.getenv("ORCA_HEADING_GAIN", "2.0"))
         angular_vel = max(-self.max_angular_speed, min(self.max_angular_speed, orca_heading_gain * heading_error))
+
+        min_other_dist = None
+        if other_robots:
+            for other in other_robots:
+                dx = other.x - robot_pose.x
+                dy = other.y - robot_pose.y
+                dist = math.hypot(dx, dy)
+                if min_other_dist is None or dist < min_other_dist:
+                    min_other_dist = dist
+
+        if min_other_dist is not None and min_other_dist < self.robot_safe_dist:
+            denom = max(self.robot_safe_dist - self.robot_radius, 1e-3)
+            factor = (min_other_dist - self.robot_radius) / denom
+            factor = max(0.0, min(1.0, factor))
+
+            if factor <= 0.0:
+                linear_vel = 0.0
+            else:
+                linear_vel *= factor
 
         return linear_vel, angular_vel
 
@@ -135,6 +154,7 @@ class ORCAPlanner(BasePlanner):
                 dist = math.sqrt(
                     (robot_pose.x - other_robot.x) ** 2 + (robot_pose.y - other_robot.y) ** 2
                 )
+
                 if dist < self.neighbor_dist:
                     if idx not in self.other_robot_history:
                         self.other_robot_history[idx] = deque(maxlen=robot_history_size)
@@ -154,6 +174,8 @@ class ORCAPlanner(BasePlanner):
                     )
                     if orca_line:
                         orca_lines.append(orca_line)
+
+            
 
         optimal_vel = linear_program2d(
             orca_lines,
