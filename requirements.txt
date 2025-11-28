@@ -1,0 +1,5 @@
+numpy<2.0
+colorlog==6.10.1
+matplotlib==3.10.5
+opencv-python==4.8.1.78
+coppeliasim_zmqremoteapi_client==2.0.4
