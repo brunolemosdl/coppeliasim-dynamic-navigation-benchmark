@@ -70,15 +70,29 @@ class TEBPlanner(BasePlanner):
             speed_factor = max(teb_min_speed_factor, (min_obstacle_dist - self.robot_radius) / collision_threshold)
 
         waypoint_threshold = float(os.getenv("TEB_WAYPOINT_THRESHOLD", os.getenv("WAYPOINT_THRESHOLD", "0.05")))
-        if distance < waypoint_threshold:
-            if len(self.current_path) > 1:
-                self.current_path.pop(0)
-            if len(self.current_path) < 2:
-                return 0.0, 0.0
+        while distance < waypoint_threshold and len(self.current_path) > 1:
+            self.current_path.pop(0)
             next_waypoint = self.current_path[0]
             dx = next_waypoint[0] - robot_pose.x
             dy = next_waypoint[1] - robot_pose.y
             distance = math.sqrt(dx**2 + dy**2)
+
+        if distance < waypoint_threshold:
+            if target:
+                dx = target[0] - robot_pose.x
+                dy = target[1] - robot_pose.y
+                distance = math.sqrt(dx**2 + dy**2)
+                if distance < waypoint_threshold:
+                    return 0.0, 0.0
+                target_angle = math.atan2(dy, dx)
+                heading_error = normalize_angle(target_angle - robot_pose.theta)
+                linear_vel = min(self.max_speed, distance)
+                angular_vel = max(
+                    -self.max_angular_speed,
+                    min(self.max_angular_speed, 2.5 * heading_error / self.dt),
+                )
+                return linear_vel, angular_vel
+            return 0.0, 0.0
 
         target_angle = math.atan2(dy, dx)
         heading_error = normalize_angle(target_angle - robot_pose.theta)
@@ -121,10 +135,10 @@ class TEBPlanner(BasePlanner):
             self.current_path.append((target[0], target[1]))
             return
 
-        num_points = max(2, min(self.horizon, int(distance / 0.5)))
+        num_points = max(1, min(self.horizon - 1, int(distance / 0.5)))
 
-        for i in range(num_points):
-            t = i / (num_points - 1) if num_points > 1 else 0
+        for i in range(1, num_points + 1):
+            t = i / float(num_points + 1)
             x = robot_pose.x + t * dx
             y = robot_pose.y + t * dy
             self.current_path.append((x, y))

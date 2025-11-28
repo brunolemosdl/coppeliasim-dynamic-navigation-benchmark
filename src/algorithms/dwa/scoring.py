@@ -67,7 +67,9 @@ def calc_clearance_score(
         return 0.3 + 0.7 * min(1.0, (min_dist - safe_distance) / (max_clearance - safe_distance))
 
 def calc_velocity_score(v: float, w: float, max_speed: float, max_angular_speed: float) -> float:
-    if max_speed <= 0:
+    if max_speed <= 0 or max_angular_speed <= 0:
         return 0.0
 
-    return v / max_speed
+    forward_pref = max(0.0, min(1.0, v / max_speed))
+    stable_heading = 1.0 - min(1.0, abs(w) / max_angular_speed)
+    return 0.7 * forward_pref + 0.3 * stable_heading
