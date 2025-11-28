@@ -28,6 +28,7 @@ class DWAPlanner(BasePlanner):
         self.alpha = float(os.getenv("DWA_ALPHA", "0.4"))
         self.beta = float(os.getenv("DWA_BETA", "0.5"))
         self.gamma = float(os.getenv("DWA_GAMMA", "0.1"))
+        self.delta = float(os.getenv("DWA_DELTA", "0.3"))
         self.current_v = 0.0
         self.current_w = 0.0
 
@@ -141,11 +142,23 @@ class DWAPlanner(BasePlanner):
                     traj, obstacles, other_robots, self.robot_radius
                 )
                 velocity_score = calc_velocity_score(v, w, self.max_speed, self.max_angular_speed)
+                current_distance = math.sqrt(
+                    (pose.x - target[0]) ** 2 + (pose.y - target[1]) ** 2
+                )
+                final_distance = math.sqrt(
+                    (traj[-1][0] - target[0]) ** 2 + (traj[-1][1] - target[1]) ** 2
+                )
+                progress_score = 0.0
+                if current_distance > 1e-6:
+                    progress_score = max(
+                        0.0, (current_distance - final_distance) / current_distance
+                    )
 
                 score = (
                     self.alpha * heading_score
                     + self.beta * clearance_score
                     + self.gamma * velocity_score
+                    + self.delta * progress_score
                 )
 
                 if score > best_score:

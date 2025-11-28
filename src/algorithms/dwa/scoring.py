@@ -70,4 +70,9 @@ def calc_velocity_score(v: float, w: float, max_speed: float, max_angular_speed:
     if max_speed <= 0:
         return 0.0
 
-    return v / max_speed
+    linear_component = v / max_speed
+    angular_component = 1.0
+    if max_angular_speed > 0:
+        angular_component = 1.0 - min(1.0, abs(w) / max_angular_speed)
+
+    return 0.7 * linear_component + 0.3 * angular_component

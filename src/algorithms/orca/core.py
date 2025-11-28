@@ -65,25 +65,6 @@ class ORCAPlanner(BasePlanner):
         orca_heading_gain = float(os.getenv("ORCA_HEADING_GAIN", "2.0"))
         angular_vel = max(-self.max_angular_speed, min(self.max_angular_speed, orca_heading_gain * heading_error))
 
-        min_other_dist = None
-        if other_robots:
-            for other in other_robots:
-                dx = other.x - robot_pose.x
-                dy = other.y - robot_pose.y
-                dist = math.hypot(dx, dy)
-                if min_other_dist is None or dist < min_other_dist:
-                    min_other_dist = dist
-
-        if min_other_dist is not None and min_other_dist < self.robot_safe_dist:
-            denom = max(self.robot_safe_dist - self.robot_radius, 1e-3)
-            factor = (min_other_dist - self.robot_radius) / denom
-            factor = max(0.0, min(1.0, factor))
-
-            if factor <= 0.0:
-                linear_vel = 0.0
-            else:
-                linear_vel *= factor
-
         return linear_vel, angular_vel
 
     def _calculate_preferred_velocity(
