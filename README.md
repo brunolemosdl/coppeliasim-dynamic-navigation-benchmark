@@ -344,7 +344,7 @@ The `generate_plots.py` script:
 │  │  - LiDAR reading                │ │
 │  └─────────────────────────────────┘ │
 │  ┌─────────────────────────────────┐ │
-│  │  Planner (DWA/TEB/ORCA/PID)    │ │
+│  │  Planner (DWA/TEB/ORCA/PID)     │ │
 │  │  - Velocity computation         │ │
 │  │  - Obstacle avoidance           │ │
 │  └─────────────────────────────────┘ │
@@ -357,7 +357,7 @@ The `generate_plots.py` script:
 │  ┌─────────────────────────────────┐ │
 │  │  Visualizer                     │ │
 │  │  - Real-time plots              │ │
-│  │  - Trajectory visualization    │ │
+│  │  - Trajectory visualization     │ │
 │  └─────────────────────────────────┘ │
 └──────────────────────────────────────┘
 ```
@@ -370,7 +370,7 @@ The `generate_plots.py` script:
 ```
 coppeliasim-dynamic-navigation-benchmark/
 ├── src/
-│   ├── algorithms/          # Navigation algorithms
+│   ├── algorithms/         # Navigation algorithms
 │   │   ├── dwa/            # Dynamic Window Approach
 │   │   ├── teb/            # Timed Elastic Band
 │   │   ├── orca/           # Optimal Reciprocal Collision Avoidance
@@ -380,7 +380,7 @@ coppeliasim-dynamic-navigation-benchmark/
 │   ├── robot/              # Robot controller and configuration
 │   ├── services/           # CoppeliaSim and sensor services
 │   ├── utils/              # Utilities (metrics, logging, etc.)
-│   ├── visualization/     # Plotting and visualization
+│   ├── visualization/      # Plotting and visualization
 │   └── main.py             # Main entry point
 ├── scenes/                 # CoppeliaSim scene files (.ttt)
 ├── scripts/                # Analysis scripts
@@ -390,7 +390,7 @@ coppeliasim-dynamic-navigation-benchmark/
 ├── docs/                   # Documentation
 ├── makefile                # Build automation
 ├── requirements.txt        # Python dependencies
-└── README.md              # This file
+└── README.md               # This file
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
