@@ -66,7 +66,7 @@ DEADLOCK_DISTANCE_THRESHOLD ?= 0.1
 SENSOR_ORTHO_SIZE ?= 12.0
 
 # ─── Phony ───
-.PHONY: help run setup clean check-deps test-connection status
+.PHONY: help run benchmark plots setup clean check-deps test-connection status
 
 # ─── Help ───
 help:
@@ -88,6 +88,8 @@ help:
 	@printf "  make run SCENE=scene_1 PLANNER=dwa VISUALIZE=1\n"
 	@printf "  make run SCENE=scene_2 PLANNER=teb SIM_TIME=300\n"
 	@printf "  make run SCENE=scene_3 PLANNER=orca\n"
+	@printf "  make benchmark  # Run 20x each algorithm in each scene (unlimited time)\n"
+	@printf "  make plots      # Generate plots from results\n"
 
 # ─── Validation ───
 validate:
@@ -122,6 +124,70 @@ run: validate
 		--save-logs $(SAVE_LOGS) \
 		--output-dir $(RESULTS_PATH) \
 		$(EXTRA_FLAGS)
+
+# ─── Benchmark: Run 20x each algorithm in each scene ───
+BENCHMARK_ITERATIONS ?= 20
+BENCHMARK_SCENES := scene_1 scene_2 scene_3
+BENCHMARK_PLANNERS := dwa teb orca
+BENCHMARK_SIM_TIME := 999999
+
+benchmark: validate
+	@$(INFO) "Starting benchmark: $(BENCHMARK_ITERATIONS) iterations per algorithm per scene"
+	@$(INFO) "Scenes: $(BENCHMARK_SCENES)"
+	@$(INFO) "Algorithms: $(BENCHMARK_PLANNERS)"
+	@$(INFO) "Simulation time: unlimited ($(BENCHMARK_SIM_TIME)s)"
+	@total=0; \
+	total_runs=$$((3 * 3 * $(BENCHMARK_ITERATIONS))); \
+	for scene in $(BENCHMARK_SCENES); do \
+		for planner in $(BENCHMARK_PLANNERS); do \
+			$(INFO) "─────────────────────────────────────────"; \
+			$(INFO) "Scene: $$scene | Algorithm: $$planner"; \
+			$(INFO) "─────────────────────────────────────────"; \
+			for iter in $$(seq 1 $(BENCHMARK_ITERATIONS)); do \
+				total=$$((total + 1)); \
+				$(INFO) "Iteration $$iter/$(BENCHMARK_ITERATIONS) (Total: $$total/$$total_runs)"; \
+				$(PYTHON) $(SRC_DIR)/main.py \
+					--scene $$scene \
+					--planner $$planner \
+					--scene-dir $(SCENE_PATH) \
+					--host $(HOST) \
+					--port $(PORT) \
+					--sim-time $(BENCHMARK_SIM_TIME) \
+					--laser-max-range $(LASER_MAX_RANGE) \
+					--max-speed $(MAX_SPEED) \
+					--max-ang-speed $(MAX_ANG_SPEED) \
+					--robot-radius $(ROBOT_RADIUS) \
+					--goal-tolerance $(GOAL_TOLERANCE) \
+					--deadlock-time-threshold $(DEADLOCK_TIME_THRESHOLD) \
+					--deadlock-distance-threshold $(DEADLOCK_DISTANCE_THRESHOLD) \
+					--plot-interval $(PLOT_INTERVAL) \
+					--save-trajectory $(SAVE_TRAJECTORY) \
+					--save-logs $(SAVE_LOGS) \
+					--output-dir $(RESULTS_PATH) \
+					$(EXTRA_FLAGS) || { \
+						$(ERROR) "Failed: $$scene/$$planner iteration $$iter"; \
+						exit 1; \
+					}; \
+				$(INFO) "Completed: $$scene/$$planner iteration $$iter"; \
+			done; \
+			$(INFO) "Finished all iterations for $$scene/$$planner"; \
+		done; \
+	done; \
+	$(INFO) "════════════════════════════════════════════"; \
+	$(INFO) "Benchmark complete! Total runs: $$total"; \
+	$(INFO) "════════════════════════════════════════════"
+
+# ─── Generate plots ───
+PLOTS_DIR := plots
+PLOTS_RESULTS_DIR ?= $(RESULTS_DIR)
+
+plots:
+	@$(INFO) "Generating plots from results"
+	@mkdir -p $(PLOTS_DIR)
+	@$(PYTHON) scripts/generate_plots.py \
+		--results-dir $(PLOTS_RESULTS_DIR) \
+		--output-dir $(PLOTS_DIR)
+	@$(INFO) "Plots saved to $(PLOTS_DIR)"
 
 # ─── Env & diagnostics ───
 setup:

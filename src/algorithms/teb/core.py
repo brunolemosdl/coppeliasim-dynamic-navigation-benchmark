@@ -43,7 +43,7 @@ class TEBPlanner(BasePlanner):
                     return 0.0, 0.0
                 target_angle = math.atan2(dy, dx)
                 heading_error = normalize_angle(target_angle - robot_pose.theta)
-                linear_vel = min(self.max_speed * 0.3, distance * 0.5)
+                linear_vel = min(self.max_speed, distance)
                 angular_vel = max(
                     -self.max_angular_speed,
                     min(self.max_angular_speed, 1.5 * heading_error),
@@ -121,15 +121,13 @@ class TEBPlanner(BasePlanner):
             self.current_path.append((target[0], target[1]))
             return
 
-        num_points = max(2, min(self.horizon, int(distance / 0.5)))
+        steps = max(2, min(self.horizon, int(distance / 0.5) + 1))
 
-        for i in range(num_points):
-            t = i / (num_points - 1) if num_points > 1 else 0
-            x = robot_pose.x + t * dx
-            y = robot_pose.y + t * dy
+        for i in range(1, steps + 1):
+            ratio = i / steps
+            x = robot_pose.x + ratio * dx
+            y = robot_pose.y + ratio * dy
             self.current_path.append((x, y))
-
-        self.current_path.append((target[0], target[1]))
 
     def _update_band(
         self,

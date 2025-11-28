@@ -139,6 +139,7 @@ def run_experiment(args, logger, organized_output_dir, timestamp):
         step_count = 0
         last_position = None
         stuck_counter = 0
+        position_history = []
 
         while True:
             current_time = time.time()
@@ -228,22 +229,54 @@ def run_experiment(args, logger, organized_output_dir, timestamp):
 
             controller.set_velocity(linear_vel, angular_vel)
 
-            if last_position:
-                stuck_distance_threshold = float(os.getenv("STUCK_DISTANCE_THRESHOLD", "0.05"))
-                dist_moved = (
-                    (robot_pose.x - last_position[0]) ** 2 + (robot_pose.y - last_position[1]) ** 2
-                ) ** 0.5
-                if dist_moved < stuck_distance_threshold:
-                    stuck_counter += 1
-                    stuck_counter_threshold = int(os.getenv("STUCK_COUNTER_THRESHOLD", "100"))
+            current_pos = (robot_pose.x, robot_pose.y)
+            
+            position_history.append((current_time, current_pos))
+            position_history = [(t, pos) for t, pos in position_history if current_time - t < 30.0]
+            
+            if len(position_history) > 1:
+                stuck_time_threshold = float(os.getenv("STUCK_TIME_THRESHOLD", "10.0"))
+                stuck_distance_threshold = float(os.getenv("STUCK_DISTANCE_THRESHOLD", "0.15"))
+                
+                recent_positions = [(t, pos) for t, pos in position_history 
+                                  if current_time - t <= stuck_time_threshold]
+                
+                if len(recent_positions) >= 2:
+                    oldest_time, oldest_pos = recent_positions[0]
+                    newest_time, newest_pos = recent_positions[-1]
+                    
+                    dist_in_window = (
+                        (newest_pos[0] - oldest_pos[0]) ** 2 + 
+                        (newest_pos[1] - oldest_pos[1]) ** 2
+                    ) ** 0.5
+                    
+                    time_in_window = newest_time - oldest_time
+                    
+                    if last_position:
+                        immediate_dist = (
+                            (current_pos[0] - last_position[0]) ** 2 + 
+                            (current_pos[1] - last_position[1]) ** 2
+                        ) ** 0.5
+                        immediate_threshold = float(os.getenv("STUCK_IMMEDIATE_THRESHOLD", "0.02"))
+                        
+                        if immediate_dist < immediate_threshold and dist_in_window < stuck_distance_threshold:
+                            stuck_counter += 1
+                        else:
+                            stuck_counter = max(0, stuck_counter - 1)
+                    else:
+                        if dist_in_window < stuck_distance_threshold and time_in_window >= stuck_time_threshold * 0.8:
+                            stuck_counter += 1
+                        else:
+                            stuck_counter = max(0, stuck_counter - 1)
+                    
+                    stuck_counter_threshold = int(os.getenv("STUCK_COUNTER_THRESHOLD", "200"))
                     if stuck_counter > stuck_counter_threshold:
                         logger.warning("Robot stuck detected, ending experiment")
                         logger.warning(f"Final position: ({robot_pose.x:.2f}, {robot_pose.y:.2f})")
+                        logger.warning(f"Distance moved in last {stuck_time_threshold:.1f}s: {dist_in_window:.3f}m")
                         break
-                else:
-                    stuck_counter = 0
 
-            last_position = (robot_pose.x, robot_pose.y)
+            last_position = current_pos
 
             session.step()
             sim_step_sleep = float(os.getenv("SIM_STEP_SLEEP", "0.05"))
