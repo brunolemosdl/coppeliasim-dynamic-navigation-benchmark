@@ -140,7 +140,14 @@ class DWAPlanner(BasePlanner):
                 clearance_score = calc_clearance_score(
                     traj, obstacles, other_robots, self.robot_radius
                 )
-                velocity_score = calc_velocity_score(v, w, self.max_speed, self.max_angular_speed)
+                velocity_score = calc_velocity_score(
+                    v,
+                    w,
+                    self.max_speed,
+                    self.max_angular_speed,
+                    self.current_v,
+                    self.current_w,
+                )
 
                 score = (
                     self.alpha * heading_score

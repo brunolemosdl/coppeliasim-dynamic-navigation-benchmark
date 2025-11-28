@@ -34,6 +34,14 @@ class TEBPlanner(BasePlanner):
         else:
             self._update_band(robot_pose, laser_scan, other_robots, target)
 
+        while len(self.current_path) > 1:
+            next_x, next_y = self.current_path[0]
+            dx_next = next_x - robot_pose.x
+            dy_next = next_y - robot_pose.y
+            if math.hypot(dx_next, dy_next) >= self.config.goal_tolerance * 0.25:
+                break
+            self.current_path.pop(0)
+
         if len(self.current_path) < 2:
             if target:
                 dx = target[0] - robot_pose.x
@@ -68,6 +76,8 @@ class TEBPlanner(BasePlanner):
         teb_min_speed_factor = float(os.getenv("TEB_MIN_SPEED_FACTOR", "0.2"))
         if min_obstacle_dist < critical_dist:
             speed_factor = max(teb_min_speed_factor, (min_obstacle_dist - self.robot_radius) / collision_threshold)
+        else:
+            speed_factor = max(teb_min_speed_factor, speed_factor)
 
         waypoint_threshold = float(os.getenv("TEB_WAYPOINT_THRESHOLD", os.getenv("WAYPOINT_THRESHOLD", "0.05")))
         if distance < waypoint_threshold:
@@ -117,11 +127,7 @@ class TEBPlanner(BasePlanner):
         dy = target[1] - robot_pose.y
         distance = math.sqrt(dx**2 + dy**2)
 
-        if distance < 0.1:
-            self.current_path.append((target[0], target[1]))
-            return
-
-        num_points = max(2, min(self.horizon, int(distance / 0.5)))
+        num_points = max(2, min(self.horizon, int(max(distance, 0.1) / 0.5)))
 
         for i in range(num_points):
             t = i / (num_points - 1) if num_points > 1 else 0
